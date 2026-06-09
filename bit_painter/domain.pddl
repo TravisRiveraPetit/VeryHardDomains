@@ -429,22 +429,22 @@
         (not (phase-fx))
         (phase-wb)))
 
-  ;; Instruction set for backward execution:
+  ;; Instruction set for backward execution
   ;; 0000 paint-blue-right
-  ;; 0001 move-left
-  ;; 0010 paint-red-down
-  ;; 0011 paint-green-up
-  ;; 0100 move-down
-  ;; 0101 paint-blue-left
+  ;; 0001 paint-red-left
+  ;; 0010 move-down
+  ;; 0011 paint-blue-up
+  ;; 0100 paint-red-down
+  ;; 0101 paint-blue-down
   ;; 0110 paint-red-right
-  ;; 0111 paint-green-down
-  ;; 1000 paint-red-left
+  ;; 0111 move-right
+  ;; 1000 move-left
   ;; 1001 move-up
-  ;; 1010 paint-blue-down
-  ;; 1011 paint-green-right
-  ;; 1100 paint-blue-up
-  ;; 1101 paint-red-up
-  ;; 1110 move-right
+  ;; 1010 paint-blue-left
+  ;; 1011 paint-red-up
+  ;; 1100 paint-green-up
+  ;; 1101 paint-green-right
+  ;; 1110 paint-green-down
   ;; 1111 paint-green-left
 
   (:action exec-backward-paint-blue-right
