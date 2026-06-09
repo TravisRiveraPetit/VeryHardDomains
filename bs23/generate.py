@@ -107,7 +107,6 @@ def generate_word(k):
 
     return w, max_len
 
-
 def pddl(name, word, max_len):
     tape_len = max(len(word) + 14, max_len + 14, 20)
     ps = [f"p{i}" for i in range(1, tape_len + 1)]
@@ -118,7 +117,11 @@ def pddl(name, word, max_len):
     for i, s in enumerate(word):
         contents[left_pad + i] = s
 
+    word_string = " ".join(word)
+
     out = []
+
+    out.append(f"; word: {word_string}")
 
     out.append(f"(define (problem {name})")
     out.append(f"  (:domain {DOMAIN})")
