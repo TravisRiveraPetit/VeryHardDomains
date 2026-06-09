@@ -21,128 +21,103 @@ RELATORS = [
 ]
 
 
-def windows(length, width):
-    return [list(range(i, i + width)) for i in range(length - width + 1)]
+def free_insert(w):
+    i = random.randrange(len(w) + 1)
+    s = random.choice(SYMS)
+    return w[:i] + [s, INVERSE[s]] + w[i:]
 
 
-def free_insert(tape):
+def relator_insert(w):
+    i = random.randrange(len(w) + 1)
+    r = random.choice(RELATORS)
+    return w[:i] + r + w[i:]
+
+
+def free_reduce(w):
     candidates = []
-    for i, j in windows(len(tape), 2):
-        if tape[i] is None and tape[j] is None:
-            for s in SYMS:
-                candidates.append((i, j, s, INVERSE[s]))
+    for i in range(len(w) - 1):
+        if INVERSE[w[i]] == w[i + 1]:
+            candidates.append(i)
+
     if not candidates:
-        return False
-    i, j, s, si = random.choice(candidates)
-    tape[i] = s
-    tape[j] = si
-    return True
+        return w
+
+    i = random.choice(candidates)
+    return w[:i] + w[i + 2:]
 
 
-def relator_insert(tape):
+def relator_reduce(w):
     candidates = []
-    for w in windows(len(tape), 7):
-        if all(tape[i] is None for i in w):
-            for r in RELATORS:
-                candidates.append((w, r))
+    for i in range(len(w) - 6):
+        if w[i:i + 7] in RELATORS:
+            candidates.append(i)
+
     if not candidates:
-        return False
-    w, r = random.choice(candidates)
-    for i, s in zip(w, r):
-        tape[i] = s
-    return True
+        return w
+
+    i = random.choice(candidates)
+    return w[:i] + w[i + 7:]
 
 
-def free_reduce(tape):
-    candidates = []
-    for i, j in windows(len(tape), 2):
-        if tape[i] is not None and tape[j] is not None and INVERSE[tape[i]] == tape[j]:
-            candidates.append((i, j))
-    if not candidates:
-        return False
-    i, j = random.choice(candidates)
-    tape[i] = None
-    tape[j] = None
-    return True
+def move(w, k):
+    if k <= 3:
+        moves = (
+            [free_insert] * 6
+            + [relator_insert] * 1
+            + [free_reduce] * 4
+            + [relator_reduce] * 1
+        )
+    elif k <= 7:
+        moves = (
+            [free_insert] * 5
+            + [relator_insert] * 2
+            + [free_reduce] * 3
+            + [relator_reduce] * 1
+        )
+    else:
+        moves = (
+            [free_insert] * 4
+            + [relator_insert] * 3
+            + [free_reduce] * 2
+            + [relator_reduce] * 1
+        )
 
-
-def relator_reduce(tape):
-    candidates = []
-    for w in windows(len(tape), 7):
-        if [tape[i] for i in w] in RELATORS:
-            candidates.append(w)
-    if not candidates:
-        return False
-    w = random.choice(candidates)
-    for i in w:
-        tape[i] = None
-    return True
-
-
-def slide(tape):
-    candidates = []
-    for i, j in windows(len(tape), 2):
-        if (tape[i] is None) != (tape[j] is None):
-            candidates.append((i, j))
-    if not candidates:
-        return False
-    i, j = random.choice(candidates)
-    tape[i], tape[j] = tape[j], tape[i]
-    return True
-
-
-def move(tape):
-    moves = (
-        [free_insert] * 4
-        + [relator_insert] * 3
-        + [free_reduce] * 2
-        + [relator_reduce]
-        + [slide] * 4
-    )
     random.shuffle(moves)
+
     for f in moves:
-        if f(tape):
-            return True
-    return False
+        nw = f(w)
+        if nw != w or f in (free_insert, relator_insert):
+            return nw
+
+    return w
 
 
-def crop_tape(tape, max_nonempty):
-    occupied = [i for i, x in enumerate(tape) if x is not None]
-
-    if not occupied:
-        return [None] * max(14, max_nonempty + 14)
-
-    lo = min(occupied)
-    hi = max(occupied)
-
-    cropped = tape[lo : hi + 1]
-    needed = max(len(cropped), max_nonempty) + 14
-
-    extra = needed - len(cropped)
-    left = extra // 2
-    right = extra - left
-
-    return [None] * left + cropped + [None] * right
-
-
-def generate(k):
-    steps = 10 * k
-    tape = [None] * (7 * steps + 28)
-    max_nonempty = 0
+def generate_word(k):
+    w = []
+    max_len = 0
+    steps = 2 * k + 2
 
     for _ in range(steps):
-        move(tape)
-        max_nonempty = max(max_nonempty, sum(x is not None for x in tape))
+        w = move(w, k)
+        max_len = max(max_len, len(w))
 
-    if all(x is None for x in tape):
-        relator_insert(tape)
-        max_nonempty = max(max_nonempty, 7)
+    if not w:
+        w = random.choice(RELATORS)[:]
+        max_len = max(max_len, len(w))
 
-    return crop_tape(tape, max_nonempty)
+    return w, max_len
 
 
-def pddl(name, tape):
-    ps = [f"p{i}" for i in range(1, len(tape) + 1)]
+def pddl(name, word, max_len):
+    tape_len = max(len(word) + 14, max_len + 14, 20)
+    ps = [f"p{i}" for i in range(1, tape_len + 1)]
+
+    left_pad = (tape_len - len(word)) // 2
+    contents = [None] * tape_len
+
+    for i, s in enumerate(word):
+        contents[left_pad + i] = s
+
     out = []
 
     out.append(f"(define (problem {name})")
@@ -167,7 +142,7 @@ def pddl(name, tape):
     out.append("    (RELATOR b a a bi ai ai ai)")
     out.append("    (RELATOR a a a b ai ai bi)")
 
-    for p, s in zip(ps, tape):
+    for p, s in zip(ps, contents):
         if s is None:
             out.append(f"    (empty {p})")
         else:
@@ -191,9 +166,10 @@ def main():
     n = int(sys.argv[1])
 
     for k in range(1, n + 1):
-        tape = generate(k)
-        Path(f"p{k}.pddl").write_text(pddl(f"p{k}", tape))
-        print(f"p{k}.pddl tape={len(tape)} nonempty={sum(x is not None for x in tape)}")
+        w, max_len = generate_word(k)
+        tape_len = max(len(w) + 14, max_len + 14, 20)
+        Path(f"p{k}.pddl").write_text(pddl(f"p{k}", w, max_len))
+        print(f"p{k}.pddl word={len(w)} max={max_len} tape={tape_len}")
 
 
 if __name__ == "__main__":
